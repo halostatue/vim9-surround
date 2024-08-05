@@ -502,6 +502,8 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
       execute 'normal! l'
     endif
     execute "normal! \<Plug>(surround-d)t" .. char
+  elseif char ==# 'f'
+    execute "normal! \<Plug>(surround-d)i(" .. char
   else
     execute "normal! \<Plug>(surround-d)" .. strcount .. 'i' .. char
   endif
@@ -548,7 +550,14 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
   else
     # One character backwards
     search('\m.', 'bW')
-    execute "normal! \<Plug>(surround-d)a" .. char
+
+    if char ==# 'f'
+      execute "normal! \<Plug>(surround-d)a(" .. char
+      execute 'normal! b\<Plug>(surround-d)w'
+      original = getreg('"')
+    else
+      execute "normal! \<Plug>(surround-d)a" .. char
+    endif
   endif
 
   var removed = getreg('"')
