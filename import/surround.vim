@@ -1,5 +1,7 @@
 vim9script
 
+const PAIRS = "b()B{}r[]a<>"
+
 export def InputTarget(): string
   var c = getcharstr()
   while c =~ '^\d+$'
@@ -25,6 +27,20 @@ enddef
 
 def Beep()
   execute "normal! \<Esc>"
+enddef
+
+def Fname(name: string, lisp: bool = false): list<string>
+  var lastchar = name->strpart(name->strlen() - 1, 1)
+  var lastIdx = PAIRS->stridx(lastchar)
+
+  var cleanName = name->strpart(0, name->strlen() - 1)
+  var [charOpen, charClose] = lastIdx >= 0 && lastIdx % 3 == 1
+    ? [lastchar, PAIRS->strpart(lastIdx + 1, 1)]
+    : ['(', ')']
+
+  return lisp
+    ? [printf('%s%s ', charOpen, cleanName), charClose]
+    : [printf('%s%s', cleanName, charOpen), charClose]
 enddef
 
 def ExtractBefore(str: string): string
@@ -119,7 +135,6 @@ def Wrap(str: string, char: string, wrapType: string, removed: string, linebreak
   var before = ""
   var after = ""
   var initSpaces = linemode ? matchstr(keeper, '\%^\s*') : matchstr(getline('.'), '\%^\s*')
-  var pairs = "b()B{}r[]a<>"
   var extraspace = ""
 
   if newchar =~ '^ '
@@ -127,7 +142,7 @@ def Wrap(str: string, char: string, wrapType: string, removed: string, linebreak
     extraspace = ' '
   endif
 
-  var idx = pairs->stridx(newchar)
+  var idx = PAIRS->stridx(newchar)
 
   var custom = printf('surround_%d', char2nr(newchar))
 
@@ -215,9 +230,7 @@ def Wrap(str: string, char: string, wrapType: string, removed: string, linebreak
     var fnf = input('function: ')
     if fnf != ""
       sInput = fnf .. "\<CR>"
-
-      before = fnf->substitute('($', '', '') .. '('
-      after = ')'
+      [before, after] = Fname(fnf)
 
       if newchar ==# 'F'
         before ..= ' '
@@ -227,14 +240,13 @@ def Wrap(str: string, char: string, wrapType: string, removed: string, linebreak
   elseif newchar ==# "\<C-F>"
     var fncf = input('function: ')
     sInput = fncf .. "\<CR>"
-    before = printf('(%s ', fncf)
-    after = ')'
+    [before, after] = Fname(fncf, true)
   elseif idx >= 0
     var spc = (idx % 3) == 1 ? ' ' : ''
     idx = (idx / 3) * 3
 
-    before = pairs->strpart(idx + 1, 1) .. spc
-    after = spc .. pairs->strpart(idx + 2, 1)
+    before = PAIRS->strpart(idx + 1, 1) .. spc
+    after = spc .. PAIRS->strpart(idx + 2, 1)
   elseif newchar == "\<C-[>" || newchar == "\<C-]>"
     before = "{\n\t"
     after  = "\n}"
