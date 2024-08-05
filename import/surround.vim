@@ -35,6 +35,14 @@ def ExtractAfter(str: string): string
   return str =~ '\r' ? matchstr(str, '\r\zs.*') : matchstr(str, '\n\zs.*')
 enddef
 
+def CustomSurroundings(char: string, d: dict<any>, trim: bool): list<string>
+  var all = Process(get(d, printf('surround_%d', char2nr(char))))
+  var before = ExtractBefore(all)
+  var after = ExtractAfter(all)
+
+  return trim ? [trim(before), trim(after)] : [before, after]
+enddef
+
 def FixIndent(str: string, spc: string): string
   var result = str->substitute('\t', repeat(' ', &sw), 'g')
   var spaces = spc->substitute('\t', repeat(' ', &sw), 'g')
@@ -126,14 +134,10 @@ def Wrap(str: string, char: string, wrapType: string, removed: string, linebreak
   if newchar == ' '
     before = ''
     after  = ''
-  elseif exists("b:surround_" .. char2nr(newchar))
-    var all = Process(b:->get('surround_' .. char2nr(newchar)))
-    before  = ExtractBefore(all)
-    after   = ExtractAfter(all)
-  elseif exists("g:surround_" .. char2nr(newchar))
-    var all = Process(g:->get('surround_' .. char2nr(newchar)))
-    before  = ExtractBefore(all)
-    after   = ExtractAfter(all)
+  elseif !b:->get(custom)->empty()
+    [before, after] = CustomSurroundings(newchar, b:, false)
+  elseif !g:->get(custom)->empty()
+    [before, after] = CustomSurroundings(newchar, g:, false)
   elseif newchar ==# "p"
     before = "\n"
     after  = "\n\n"
@@ -316,6 +320,49 @@ def Wrapreg(reg: string, char: string, removed: string, linebreak: bool)
   setreg(reg, new, wrapType)
 enddef
 
+def Escape(str: string): string
+  return str->escape('!#$%&()*+,-./:;<=>?@[\]^{|}~')
+enddef
+
+def DeleteCustom(char: string, d: dict<any>, count: number): list<string>
+  var [before, after] = CustomSurroundings(char, d, true)
+  var [bpat, apat] = ['\v\C' .. Escape(before), '\v\C' .. Escape(after)]
+
+  # The 'c' flag for searchpair() matches both start and end.
+  # Append \zs to the closer pattern so that it doesn't match the closer on the cursor.
+  if searchpair(bpat, '', apat .. '\zs', 'bcW') <= 0
+    return ['', '']
+  endif
+
+  if before !=# after
+    for _ in range(count - 1)
+      if searchpair(bpat, '', apat, 'bW')
+        return ['', '']
+      endif
+    endfor
+  endif
+
+  normal! v
+
+  var found: number
+
+  if before ==# after
+    search(bpat, 'ceW')
+    found = search(apat, 'eW')
+  else
+    found = searchpair(bpat, '', apat, 'W')
+    search(apat, 'ceW')
+  endif
+
+  if found <= 0
+    execute "normal! \<Esc>"
+    return ['', '']
+  endif
+
+  normal! d
+  return [before, after]
+enddef
+
 export def Insert(wantedLinemode: bool = false): string
   var char = InputReplacement()
   var linemode = wantedLinemode
@@ -396,7 +443,6 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
   var char = value == null_string ? InputTarget() : value
   var spc = false
 
-
   if char =~ '^\d\+'
     scount = scount * char->matchstr('^\d\+')->str2nr()
     char = char->substitute('^\d\+', '', '')
@@ -407,12 +453,14 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
     spc = true
   endif
 
-  if char == 'a'
-    char = '>'
-  endif
+  var custom = printf('surround_%d', char2nr(char))
 
-  if char == 'r'
-    char = ']'
+  if b:->get(custom, g:->get(custom))->empty()
+    if char == 'a'
+      char = '>'
+    elseif char == 'r'
+      char = ']'
+    endif
   endif
 
   var newchar = ""
@@ -435,6 +483,8 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
   var append = ""
   var original = getreg('"')
   var otype = getregtype('"')
+  var before = ""
+  var after = ""
 
   setreg('"', "")
 
@@ -442,6 +492,10 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
 
   if char == '/'
     execute 'normal! ' .. strcount .. "[/\<Plug>(surround-d)" .. strcount .. ']/'
+  elseif exists(printf('b:surround_%d', char2nr(char)))
+    [before, after] = DeleteCustom(char, b:, scount)
+  elseif exists(printf('g:surround_%d', char2nr(char)))
+    [before, after] = DeleteCustom(char, g:, scount)
   elseif char =~# '[[:punct:][:space:]]' && char !~# '[][(){}<>"''`]'
     execute 'normal! T' .. char
     if getline('.')[col('.') - 1] == char
@@ -467,7 +521,14 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
   var oldline = getline('.')
   var oldlnum = line('.')
 
-  if char ==# "p"
+  custom = printf('surround_%d', char2nr(char))
+
+  if !b:->get(custom, g:->get(custom))->empty()
+    setreg('"', before .. after, "c")
+    keeper = keeper
+        ->substitute('\v\C^' .. Escape(before) .. '\s=', '', '')
+        ->substitute('\v\C\s=' .. Escape(after) .. '$', '', '')
+  elseif char ==# 'p'
     setreg('"', '', 'V')
   elseif char ==# "s" || char ==# "w" || char ==# "W"
     # Do nothing
