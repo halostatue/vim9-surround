@@ -535,7 +535,7 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
   elseif char ==# 'f'
     execute "normal! \<Plug>(surround-d)i(" .. char
   else
-    execute "normal! \<Plug>(surround-d)" .. strcount .. 'i' .. char
+    execute "normal \<Plug>(surround-d)" .. strcount .. 'i' .. char
   endif
 
   var keeper = getreg('"')
@@ -586,7 +586,7 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
       execute 'normal! b\<Plug>(surround-d)w'
       original = getreg('"')
     else
-      execute "normal! \<Plug>(surround-d)a" .. char
+      execute "normal \<Plug>(surround-d)a" .. char
     endif
   endif
 
@@ -689,11 +689,11 @@ export def OpFunc(atype: string, linebreak: bool = false): string
   var reg_type = reg->getregtype()
   var type = atype
 
-  if atype == "char"
-    silent execute 'normal! v`[o`]"' .. reg .. 'y'
+  if atype == 'char'
+    silent execute 'normal v`[o`]"' .. reg .. 'y'
     type = 'v'
-  elseif atype == "line"
-    silent execute 'normal! `[V`]"' .. reg .. 'y'
+  elseif atype == 'line'
+    silent execute 'normal `[V`]"' .. reg .. 'y'
     type = 'V'
   elseif atype ==# "v" || atype ==# "V" || atype ==# "\<C-V>"
     &selection = sel_save
