@@ -10,7 +10,16 @@ if exists("g:loaded_surround") || &cp || v:version < 700
 endif
 g:loaded_surround = 1
 
+# g:surround_maps = g:->get('surround_maps', {})
+# g:surround_maps['-'] = "<% \r %>"
+# g:surround_maps['='] = "<%= \r %>"
+# g:surround_maps['l'] = "\\begin{\1environment: \1}\r\\end{\1\1}"
+# g:surround_maps['l'] = "\\begin{\1environment: \1}\r\\end{\1\r}.*\r\1}"
+# g:surround_maps['d'] = "<div\1id: \r..*\r id=\"&\"\1>\r</div>"
+
 import 'surround.vim' as s9
+
+s9.UpgradeSurroundMaps()
 
 nnoremap <silent> <Plug>(surround-repeat) .
 nnoremap <silent> <Plug>(surround-d) d
@@ -46,5 +55,11 @@ if !exists("g:surround_no_mappings") || !g:surround_no_mappings
     imap      <C-G>S <Plug>(surround-insert-line)
   endif
 endif
+
+augroup vim9-surround-map-upgrade
+  autocmd!
+
+  autocmd BufEnter * s9.UpgradeSurroundMaps()
+augroup END
 
 # vim:set ft=vim sw=2 sts=2 et:

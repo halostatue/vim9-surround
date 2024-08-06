@@ -2,6 +2,37 @@ vim9script
 
 const PAIRS = "b()B{}r[]a<>"
 
+g:surround_maps = g:->get('surround_maps', {})
+
+def UpgradeSurroundMap(d: dict<any>, name: string)
+  var match = name->matchlist('^surround_(\d+)$')
+
+  if match->empty()
+    return
+  endif
+
+  var [_, value] = name->matchlist('^surround_(\d+)$')
+
+  if value->empty()
+    return
+  endif
+
+  var maps = d->get('surround_maps', {})
+  var key = value->str2nr()->nr2char()
+
+  maps[key] = d->get(name)
+
+  d['surround_maps'] = maps
+enddef
+
+export def UpgradeSurroundMaps()
+  for d in [g:, b:]
+    for k in d->keys()
+      UpgradeSurroundMap(d, k)
+    endfor
+  endfor
+enddef
+
 export def InputTarget(): string
   var c = getcharstr()
   while c =~ '^\d+$'
@@ -52,7 +83,13 @@ def ExtractAfter(str: string): string
 enddef
 
 def CustomSurroundings(char: string, d: dict<any>, trim: bool): list<string>
-  var all = Process(get(d, printf('surround_%d', char2nr(char))))
+  var key = d->get('surround_maps', {})->get(char)
+
+  if key == null
+    throw 'Invalid surround map ' .. char
+  endif
+
+  var all = Process(key)
   var before = ExtractBefore(all)
   var after = ExtractAfter(all)
 
@@ -150,14 +187,12 @@ def Wrap(str: string, char: string, wrapType: string, removed: string, linebreak
 
   var idx = PAIRS->stridx(newchar)
 
-  var custom = printf('surround_%d', char2nr(newchar))
-
   if newchar == ' '
     before = ''
     after  = ''
-  elseif !b:->get(custom)->empty()
+  elseif !b:->get('surround_maps', {})->get(newchar)->empty()
     [before, after] = CustomSurroundings(newchar, b:, false)
-  elseif !g:->get(custom)->empty()
+  elseif !g:->get('surround_maps', {})->get(newchar)->empty()
     [before, after] = CustomSurroundings(newchar, g:, false)
   elseif newchar ==# "p"
     before = "\n"
@@ -483,9 +518,7 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
     spc = true
   endif
 
-  var custom = printf('surround_%d', char2nr(char))
-
-  if b:->get(custom, g:->get(custom))->empty()
+  if b:->get('surround_maps', g:->get('surround_maps', {}))->get(char)->empty()
     if char == 'a'
       char = '>'
     elseif char == 'r'
@@ -522,9 +555,9 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
 
   if char == '/'
     execute 'normal! ' .. strcount .. "[/\<Plug>(surround-d)" .. strcount .. ']/'
-  elseif exists(printf('b:surround_%d', char2nr(char)))
+  elseif !b:->get('surround_maps', {})->get(char)->empty()
     [before, after] = DeleteCustom(char, b:, scount)
-  elseif exists(printf('g:surround_%d', char2nr(char)))
+  elseif !g:->get('surround_maps', {})->get(char)->empty()
     [before, after] = DeleteCustom(char, g:, scount)
   elseif char =~# '[[:punct:][:space:]]' && char !~# '[][(){}<>"''`]'
     execute 'normal! T' .. char
@@ -553,9 +586,7 @@ export def DoSurround(value: string = null_string, new_value: string = null_stri
   var oldline = getline('.')
   var oldlnum = line('.')
 
-  custom = printf('surround_%d', char2nr(char))
-
-  if !b:->get(custom, g:->get(custom))->empty()
+  if !b:->get('surround_maps', g:->get('surround_maps', {}))->get(char)->empty()
     setreg('"', before .. after, "c")
     keeper = keeper
         ->substitute('\v\C^' .. Escape(before) .. '\s=', '', '')
