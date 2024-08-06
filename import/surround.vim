@@ -18,7 +18,7 @@ enddef
 def InputReplacement(): string
   var c = getcharstr()
 
-  if c == " "
+  if c =~ '[ 0-9]'
     c ..= getcharstr()
   endif
 
@@ -135,7 +135,13 @@ def Wrap(str: string, char: string, wrapType: string, removed: string, linebreak
   var before = ""
   var after = ""
   var initSpaces = linemode ? matchstr(keeper, '\%^\s*') : matchstr(getline('.'), '\%^\s*')
+  var scount = 1
   var extraspace = ""
+
+  if newchar =~ '^[0-9]'
+    scount = newchar->strpart(0, 1)->str2nr()
+    newchar = newchar->strpart(1)
+  endif
 
   if newchar =~ '^ '
     newchar = newchar->strpart(1)
@@ -256,6 +262,18 @@ def Wrap(str: string, char: string, wrapType: string, removed: string, linebreak
   else
     before = ''
     after  = ''
+  endif
+
+  if before =~ '.*\n\t$'
+    before = repeat(before->substitute('\n\t', '', ''), scount) .. '\n\t'
+  else
+    before = repeat(before, scount)
+  endif
+
+  if after =~ '.*\n\t$'
+    after = repeat(after->substitute('\n\t', '', ''), scount) .. '\n\t'
+  else
+    after = repeat(after, scount)
   endif
 
   after = after->substitute('\n', '\n' .. initSpaces, 'g')

@@ -96,7 +96,7 @@ All targets are currently just one character.
 
 Eight punctuation marks, (, ), {, }, [, ], <, and >, represent themselves
 and their counterparts.  If the opening mark is used, contained whitespace is
-also trimmed.  The targets b, B, r, and a are aliases for ), }, ], and > 
+also trimmed.  The targets b, B, r, and a are aliases for ), }, ], and >
 (the first two mirror Vim; the second two are completely arbitrary and
 subject to change).
 
@@ -128,6 +128,12 @@ which append an additional space to the inside.  Like with the targets above,
 b, B, r, and a are aliases for ), }, ], and >.  To fulfill the common need for
 code blocks in C-style languages, <C-}> (which is really <C-]>) adds braces on
 lines separate from the content.
+
+If a single digit number is used, the remaining replacement argument is
+repeated by that count.
+
+  Old text                  Command           New text ~
+  hello                     ysW2*             **hello**
 
 If t or < is used, Vim prompts for an HTML/XML tag to insert.  You may specify
 attributes here and they will be stripped from the closing tag. If replacing a
