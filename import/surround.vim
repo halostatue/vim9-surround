@@ -64,10 +64,15 @@ def Fname(name: string, lisp: bool = false): list<string>
   var lastchar = name->strpart(name->strlen() - 1, 1)
   var lastIdx = PAIRS->stridx(lastchar)
 
-  var cleanName = name->strpart(0, name->strlen() - 1)
-  var [charOpen, charClose] = lastIdx >= 0 && lastIdx % 3 == 1
-    ? [lastchar, PAIRS->strpart(lastIdx + 1, 1)]
-    : ['(', ')']
+  var [cleanName, charOpen, charClose] = [name, '(', ')']
+
+  if lastIdx >= 0 && lastIdx % 3 == 1
+    [cleanName, charOpen, charClose] = [
+      name->strpart(0, name->strlen() - 1),
+      lastchar,
+      PAIRS->strpart(lastIdx + 1, 1)
+    ]
+  endif
 
   return lisp
     ? [printf('%s%s ', charOpen, cleanName), charClose]
